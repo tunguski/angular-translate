@@ -899,4 +899,49 @@ describe('ngTranslate', function () {
       });
     });
   });
+
+  describe('Asynchronous loading with transform interceptor', function () {
+
+    beforeEach(module('ngTranslate', function ($translateProvider) {
+      $translateProvider.registerLoader(function ($q, $timeout) {
+        return function (key) {
+          var deferred = $q.defer(),
+              data = {
+                component: {
+                  foo: {
+                    bar: 'namespace'
+                  }
+                },
+                component2: {
+                  foo: 'bar'
+                }
+              };
+
+          $timeout(function () {
+            deferred.resolve(data);
+          }, 0);
+          return deferred.promise;
+        };
+      }, function ($q, $timeout) {
+        return function transformInterceptorFn(data) {
+          var deferred = $q.defer();
+
+          $timeout(function () {
+            deferred.resolve({
+              foo: 'bar'
+            });
+          }, 0);
+          return deferred.promise;
+        };
+      });
+      $translateProvider.uses('de_DE');
+    }));
+
+    it('should call transformInterceptorFn if applicable', function () {
+      inject(function ($translate, $timeout) {
+        $timeout.flush();
+        expect($translate('foo')).toEqual('bar');
+      });
+    });
+  });
 });

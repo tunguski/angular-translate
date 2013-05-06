@@ -18,7 +18,8 @@ angular.module('ngTranslate').provider('$translate', function () {
   var $translationTable = {},
       $uses,
       $rememberLanguage = false,
-      $missingTranslationHandler,
+      $missingTranslationHandlerFn,
+      $transformInterceptorFn,
       $asyncLoaders = [];
 
   var LoaderGenerator = {
@@ -102,14 +103,14 @@ angular.module('ngTranslate').provider('$translate', function () {
     $rememberLanguage = boolVal;
   };
 
-  this.missingTranslationHandler = function (functionHandler) {
-    if (angular.isUndefined(functionHandler)) {
-      return $missingTranslationHandler;
+  this.missingTranslationHandler = function (fn) {
+    if (!fn) {
+      return $missingTranslationHandlerFn;
     }
-    $missingTranslationHandler = functionHandler;
+    $missingTranslationHandlerFn = fn;
   };
 
-  this.registerLoader = function (loader) {
+  this.registerLoader = function (loader, transformInterceptorFn) {
 
     if (!loader) {
       throw new Error("Please define a valid loader!");
@@ -137,6 +138,10 @@ angular.module('ngTranslate').provider('$translate', function () {
       $loader = loader;
     }
     $asyncLoaders.push($loader);
+
+    if (angular.isFunction(transformInterceptorFn) || angular.isArray(transformInterceptorFn)) {
+      $transformInterceptorFn = transformInterceptorFn;
+    }
   };
 
   var invokeLoading = function($injector, key) {
@@ -146,11 +151,26 @@ angular.module('ngTranslate').provider('$translate', function () {
         loaderFn;
 
     if (loaderFnBuilder) {
+
       loaderFn = $injector.invoke(loaderFnBuilder);
+
       if (angular.isFunction(loaderFn)) {
+
         loaderFn(key).then(function (data) {
-          $translationTable[key] = data;
-          deferred.resolve(data);
+
+          if ($transformInterceptorFn) {
+
+            $injector.invoke($transformInterceptorFn)(data).then(function (data) {
+              $translationTable[key] = data;
+              deferred.resolve(data);
+            }, function (key) {
+              deferred.reject(key);
+            });
+
+          } else {
+            $translationTable[key] = data;
+            deferred.resolve(data);
+          }
         }, function (key) {
           deferred.reject(key);
         });
@@ -160,7 +180,6 @@ angular.module('ngTranslate').provider('$translate', function () {
     } else {
       deferred.reject(key);
     }
-
     return deferred.promise;
   };
 
@@ -182,8 +201,8 @@ angular.module('ngTranslate').provider('$translate', function () {
         return $interpolate(translation)(interpolateParams);
       }
 
-      if (!angular.isUndefined($missingTranslationHandler)) {
-        $missingTranslationHandler(translationId);
+      if ($missingTranslationHandlerFn && angular.isFunction($missingTranslationHandlerFn)) {
+        $missingTranslationHandlerFn(translationId);
       } else {
         $log.warn("Translation for " + translationId + " doesn't exist");
       }
