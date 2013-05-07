@@ -1,24 +1,24 @@
-angular.module('ngTranslate', ['ng', 'ngCookies'])
+angular.module('ngTranslate', ['ng'])
 
-.run(['$translate', '$COOKIE_KEY', '$cookieStore', function ($translate, $COOKIE_KEY, $cookieStore) {
+.run(['$translate', '$COOKIE_KEY', function ($translate, $COOKIE_KEY) {
 
   if ($translate.rememberLanguage()) {
-    if (!$cookieStore.get($COOKIE_KEY)) {
-      
+    if (!$translate.storage.get($COOKIE_KEY)) {
+
       if (angular.isString($translate.preferredLanguage())) {
         // $translate.uses method will both set up and remember the language in case it's loaded successfully
         $translate.uses($translate.preferredLanguage());
       } else {
-        $cookieStore.put($COOKIE_KEY, $translate.uses());
+        $translate.storage.set($COOKIE_KEY, $translate.uses());
       }
-      
+
     } else {
-      $translate.uses($cookieStore.get($COOKIE_KEY));
+      $translate.uses($translate.storage.get($COOKIE_KEY));
     }
   } else if (angular.isString($translate.preferredLanguage())) {
     $translate.uses($translate.preferredLanguage());
   }
-  
+
 }]);
 
 angular.module('ngTranslate').constant('$COOKIE_KEY', 'NG_TRANSLATE_LANG_KEY');
@@ -30,6 +30,7 @@ angular.module('ngTranslate').provider('$translate', function () {
       $uses,
       $rememberLanguage = false,
       $missingTranslationHandler,
+      $storageFactoryFn,
       $asyncLoaders = [],
       NESTED_OBJECT_DELIMITER = '.';
 
@@ -102,7 +103,7 @@ angular.module('ngTranslate').provider('$translate', function () {
       return $preferredLanguage;
     }
   };
-  
+
   this.uses = function (langKey) {
     if (langKey) {
       if (!$translationTable[langKey] && (!$asyncLoaders.length)) {
@@ -127,6 +128,52 @@ angular.module('ngTranslate').provider('$translate', function () {
       return $missingTranslationHandler;
     }
     $missingTranslationHandler = functionHandler;
+  };
+
+  this.registerStorageFactory = function (storageFactoryFn) {
+
+    if (!storageFactoryFn) {
+      throw new Error('Couldn\'t register storage factory without given storageFactoryFn!');
+    }
+
+    if (!(angular.isFunction(storageFactoryFn) || angular.isArray(storageFactoryFn))) {
+      if (angular.isString(storageFactoryFn)) {
+
+        var cookieStorageFactoryFn = ['$cookieStore', function ($cookieStore) {
+          return {
+            get: function (name) { return $cookieStore.get(name); },
+            set: function (name, value) { $cookieStore.put(name, value); }
+          };
+        }];
+
+        switch (storageFactoryFn) {
+
+          case 'cookieStorage':
+            $storageFactoryFn = cookieStorageFactoryFn;
+            break;
+
+          case 'localStorage':
+
+            if ('localStorage' in window && window['localStorage'] !== null) {
+              $storageFactoryFn = ['$window', function ($window) {
+                return {
+                  get: function (name) { return $window.localStorage.getItem(name); },
+                  set: function (name, value) { $window.localStorage.setItem(name, value); }
+                };
+              }];
+            } else {
+              $storageFactoryFn = cookieStorageFactoryFn;
+            }
+            break;
+
+          default:
+            throw new Error('StorageFactory \'' + storageFactoryFn + '\' is not supported!');
+            break;
+        }
+      }
+    } else {
+      $storageFactoryFn = storageFactoryFn;
+    }
   };
 
   this.registerLoader = function (loader) {
@@ -210,11 +257,11 @@ angular.module('ngTranslate').provider('$translate', function () {
     '$interpolate',
     '$log',
     '$injector',
-    '$cookieStore',
     '$rootScope',
     '$q',
     '$COOKIE_KEY',
-    function ($interpolate, $log, $injector, $cookieStore, $rootScope, $q, $COOKIE_KEY) {
+    function ($interpolate, $log, $injector, $rootScope, $q, $COOKIE_KEY) {
+
 
     var $translate = function (translationId, interpolateParams) {
       var translation = ($uses) ?
@@ -233,10 +280,23 @@ angular.module('ngTranslate').provider('$translate', function () {
       return translationId;
     };
 
+    if ($rememberLanguage) {
+
+      if (!$storageFactoryFn) {
+        throw new Error('Couldn\'t remember language, no storage factory registered!');
+      }
+
+      $translate.storage = $injector.invoke($storageFactoryFn);
+
+      if (!$translate.storage.get && !$translate.storage.set) {
+        throw new Error('Registered storage doesn\'t implement storage definition!');
+      }
+    }
+
     $translate.preferredLanguage = function() {
-        return $preferredLanguage;
+      return $preferredLanguage;
     };
-    
+
     $translate.uses = function (key) {
 
       if (!key) {
@@ -250,7 +310,7 @@ angular.module('ngTranslate').provider('$translate', function () {
           $uses = key;
 
           if ($rememberLanguage) {
-            $cookieStore.put($COOKIE_KEY, $uses);
+            $translate.storage.set($COOKIE_KEY, $uses);
           }
           $rootScope.$broadcast('translationChangeSuccess');
           deferred.resolve($uses);
@@ -264,7 +324,7 @@ angular.module('ngTranslate').provider('$translate', function () {
       $uses = key;
 
       if ($rememberLanguage) {
-        $cookieStore.put($COOKIE_KEY, $uses);
+        $translate.storage.set($COOKIE_KEY, $uses);
       }
 
       deferred.resolve($uses);

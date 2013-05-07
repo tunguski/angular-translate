@@ -105,6 +105,70 @@ describe('ngTranslate', function () {
     });
   });
 
+  describe('$translateService#rememberLanguage()', function () {
+
+    beforeEach(module('ngTranslate', function ($translateProvider) {
+      $translateProvider.translations('de_DE', {
+        'EXISTING_TRANSLATION_ID': 'foo',
+        'ANOTHER_ONE': 'bar',
+        'TRANSLATION_ID': 'Lorem Ipsum {{value}}',
+        'TRANSLATION_ID_2': 'Lorem Ipsum {{value}} + {{value}}',
+        'TRANSLATION_ID_3': 'Lorem Ipsum {{value + value}}',
+        'YET_ANOTHER': 'Hallo da!'
+      });
+      $translateProvider.translations('en_EN', {
+        'YET_ANOTHER': 'Hello there!'
+      });
+      $translateProvider.preferredLanguage('de_DE');
+
+      $translateProvider.registerStorageFactory('cookieStorage');
+      $translateProvider.rememberLanguage(true);
+    }));
+
+    var $translate, $rootScope, $compile;
+
+    beforeEach(inject(function (_$translate_, _$rootScope_, _$compile_) {
+      $translate = _$translate_;
+      $rootScope = _$rootScope_;
+      $compile = _$compile_;
+    }));
+
+    it('should have a method rememberLanguage()', function () {
+      inject(function ($translate) {
+        expect($translate.rememberLanguage).toBeDefined();
+      });
+    });
+
+    it('should be a function', function () {
+      inject(function ($translate) {
+        expect(typeof $translate.rememberLanguage).toBe('function');
+      });
+    });
+
+    it('should return true if remmemberLanguage() is set to true', function () {
+      inject(function ($translate) {
+        expect($translate.rememberLanguage()).toBe(true);
+      });
+    });
+
+    it('should use fallback language if no language is stored in $cookieStore', function () {
+      inject(function ($cookieStore, $COOKIE_KEY) {
+        expect($cookieStore.get($COOKIE_KEY)).toBe('de_DE');
+      });
+    });
+
+    it('should remember when the language switched', function () {
+      inject(function ($translate, $rootScope, $cookieStore, $COOKIE_KEY) {
+        $cookieStore.remove($COOKIE_KEY);
+        expect($translate('YET_ANOTHER')).toBe('Hallo da!');
+        $translate.uses('en_EN');
+        $rootScope.$digest();
+        expect($translate('YET_ANOTHER')).toBe('Hello there!');
+        expect($cookieStore.get($COOKIE_KEY)).toBe('en_EN');
+      });
+    });
+  });
+
   describe('$translateService (multi-lang)', function () {
 
     beforeEach(module('ngTranslate', function ($translateProvider) {
@@ -119,8 +183,6 @@ describe('ngTranslate', function () {
       $translateProvider.translations('en_EN', {
         'YET_ANOTHER': 'Hello there!'
       });
-      $translateProvider.uses('de_DE');
-      $translateProvider.rememberLanguage(true);
       $translateProvider.preferredLanguage('en_EN');
       $translateProvider.preferredLanguage('de_DE');
     }));
@@ -198,42 +260,6 @@ describe('ngTranslate', function () {
       });
     });
 
-    describe('$translateService#rememberLanguage()', function () {
-
-      it('should have a method rememberLanguage()', function () {
-        inject(function ($translate) {
-          expect($translate.rememberLanguage).toBeDefined();
-        });
-      });
-
-      it('should be a function', function () {
-        inject(function ($translate) {
-          expect(typeof $translate.rememberLanguage).toBe('function');
-        });
-      });
-
-      it('should return true if remmemberLanguage() is set to true', function () {
-        inject(function ($translate) {
-          expect($translate.rememberLanguage()).toBe(true);
-        });
-      });
-
-      it('should use fallback language if no language is stored in $cookieStore', function () {
-        inject(function ($cookieStore, $COOKIE_KEY) {
-          expect($cookieStore.get($COOKIE_KEY)).toBe('de_DE');
-        });
-      });
-
-      it('should remember when the language switched', function () {
-        inject(function ($translate, $rootScope, $cookieStore, $COOKIE_KEY) {
-          expect($translate('YET_ANOTHER')).toBe('Hallo da!');
-          $translate.uses('en_EN');
-          $rootScope.$digest();
-          expect($translate('YET_ANOTHER')).toBe('Hello there!');
-          expect($cookieStore.get($COOKIE_KEY)).toBe('en_EN');
-        });
-      });
-    });
 
     describe('$translateService#preferredLanguage()', function () {
 
