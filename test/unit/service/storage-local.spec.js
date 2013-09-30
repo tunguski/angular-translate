@@ -31,12 +31,23 @@ describe('pascalprecht.translate', function () {
         });
       });
 
+      it('should return a promise', function () {
+        inject(function ($translateLocalStorage) {
+          expect($translateLocalStorage.get().then).toBeDefined();
+        });
+      });
     });
 
     describe('set()', function () {
       it('should be a function', function () {
         inject(function ($translateLocalStorage) {
           expect(typeof $translateLocalStorage.set).toBe('function');
+        });
+      });
+
+      it('should return a promise', function () {
+        inject(function ($translateLocalStorage) {
+
         });
       });
     });
@@ -62,8 +73,20 @@ describe('pascalprecht.translate', function () {
     }));
 
     it('should use localstorage', function () {
-      inject(function ($window, $translate) {
-        expect($translate.storage().get($translate.storageKey())).toEqual('de_DE');
+      inject(function ($window, $translate, $rootScope, $q) {
+        var deferred = $q.defer(),
+            promise = deferred.promise,
+            result;
+
+        promise.then(function (value) {
+          result = value;
+        });
+
+        $translate.storage().get($translate.storageKey()).then(function (value) {
+          deferred.resolve(value);
+        });
+        $rootScope.$digest();
+        expect(result).toEqual('de_DE');
       });
     });
   });
