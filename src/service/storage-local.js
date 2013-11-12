@@ -10,7 +10,7 @@ angular.module('pascalprecht.translate')
  * to use localStorage as storage.
  *
  */
-.factory('$translateLocalStorage', ['$window', '$q', '$translateCookieStorage', function ($window, $q, $translateCookieStorage) {
+.factory('$translateLocalStorage', ['$window', '$q', '$timeout', '$translateCookieStorage', function ($window, $q, $timeout, $translateCookieStorage) {
 
   // Setup adapter
   var localStorageAdapter = {
@@ -26,10 +26,13 @@ angular.module('pascalprecht.translate')
      * @return {string} Value of item name
      */
     get: function (name) {
-      var deferred = $q.defer();
+      var deferred = $q.defer(),
 
-      deferred.resolve($window.localStorage.getItem(name));
-      console.log($window.localStorage.getItem(name));
+      if (item) {
+        deferred.resolve(item);
+      } else {
+        deferred.reject();
+      }
       return deferred.promise;
     },
     /**

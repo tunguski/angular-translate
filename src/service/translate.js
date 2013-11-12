@@ -713,6 +713,7 @@ angular.module('pascalprecht.translate').provider('$translate', ['$STORAGE_KEY',
         $rootScope.$broadcast('$translateChangeSuccess');
 
         if ($storageFactory) {
+          console.log('setting value');
           Storage.set($translate.storageKey(), $uses);
         }
 

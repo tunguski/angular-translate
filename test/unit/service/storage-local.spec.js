@@ -47,7 +47,7 @@ describe('pascalprecht.translate', function () {
 
       it('should return a promise', function () {
         inject(function ($translateLocalStorage) {
-
+          expect(typeof $translateLocalStorage.get('').then).toBe('function');
         });
       });
     });
@@ -72,8 +72,8 @@ describe('pascalprecht.translate', function () {
       $translateProvider.useLocalStorage();
     }));
 
-    it('should use localstorage', function () {
-      inject(function ($window, $translate, $rootScope, $q) {
+    iit('should use localstorage', function () {
+      inject(function ($window, $translate, $rootScope, $q, $timeout) {
         var deferred = $q.defer(),
             promise = deferred.promise,
             result;
@@ -84,6 +84,8 @@ describe('pascalprecht.translate', function () {
 
         $translate.storage().get($translate.storageKey()).then(function (value) {
           deferred.resolve(value);
+        }, function () {
+          console.log('cant get!');  
         });
         $rootScope.$digest();
         expect(result).toEqual('de_DE');
