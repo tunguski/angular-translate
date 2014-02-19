@@ -297,9 +297,9 @@ describe('pascalprecht.translate', function () {
   describe('$translate#use() with async loading', function () {
 
     var fastButRequestedSecond = 'en_US',
-      slowButRequestedFirst = 'ab_CD',
-      expectedTranslation = 'Hello World',
-      fastRequestTime = 1000;
+        slowButRequestedFirst = 'ab_CD',
+        expectedTranslation = 'Hello World',
+        fastRequestTime = 1000;
 
     beforeEach(module('pascalprecht.translate', function ($translateProvider, $provide) {
 
@@ -308,55 +308,65 @@ describe('pascalprecht.translate', function () {
         $translateProvider.preferredLanguage(slowButRequestedFirst);
         $translateProvider.fallbackLanguage(fastButRequestedSecond);
 
-        $provide.service('customLoader', function($q, $timeout) {
-          return function(options) {
-              var deferred = $q.defer();
-              var locale = options.key;
+        $provide.service('customLoader', function ($q, $timeout) {
+          return function (options) {
+            var deferred = $q.defer();
+            var locale = options.key;
 
-              if (locale === fastButRequestedSecond) {
-                  $timeout(function() {
-                      deferred.resolve({
-                          greeting: expectedTranslation
-                      });
-                  }, fastRequestTime);
-              }
+            if (locale === fastButRequestedSecond) {
+                $timeout(function () {
+                    deferred.resolve({
+                        greeting: expectedTranslation
+                    });
+                }, fastRequestTime);
+            }
 
-              if (locale === slowButRequestedFirst) {
+            if (locale === slowButRequestedFirst) {
 
-                  $timeout(function() {
-                      deferred.resolve({
-                          greeting: 'foo bar bork bork bork'
-                      });
-                  }, fastRequestTime * 2);
-              }
+                $timeout(function() {
+                    deferred.resolve({
+                        greeting: 'foo bar bork bork bork'
+                    });
+                }, fastRequestTime * 2);
+            }
 
-              return deferred.promise;
-          }
+            return deferred.promise;
+        }
       });
-
     }));
 
     var $translate;
 
-    beforeEach(inject(function($timeout, _$translate_) {
+    beforeEach(inject(function ($timeout, _$translate_) {
       $translate = _$translate_;
 
-      $timeout(function() {
-        $translate.use(fastButRequestedSecond);  
+      $timeout(function () {
+        $translate.use(fastButRequestedSecond);
       }, fastRequestTime / 2);
 
       $timeout.flush();
     }));
 
-    it('should set the language to be the most recently requested one, not the most recently responded one', inject(function($rootScope) {
+    it('should set the language to be the most recently requested one, not the most recently responded one', inject(function($rootScope, $q) {
+
+      var deferred = $q.defer(),
+          promise = deferred.promise,
+          value;
+
+      promise.then(function (translation) {
+        value = translation;
+      });
 
       $translate('greeting').then(function(translation) {
-        expect(translation).toEqual(expectedTranslation);
+        deferred.resolve(translation);
+      }, function () {
+        deferred.resolve('foo');
       });
 
       $rootScope.$digest();
+      expect(value).toEqual(expectedTranslation);
     }));
-  }); 
+  });
 
   describe('$translate#storageKey()', function () {
 
