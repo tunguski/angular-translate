@@ -524,6 +524,19 @@ module.exports = function (grunt) {
     'build:storage_local'
   ]);
 
+  grunt.registerTask('build-headless', [
+    'jshint:all',
+    'test-headless',
+    'build:core',
+    'build:messageformat_interpolation',
+    'build:handler_log',
+    'build:loader_partial',
+    'build:loader_static_files',
+    'build:loader_url',
+    'build:storage_cookie',
+    'build:storage_local'
+  ]);
+
   grunt.registerTask('build:core', [
     'jshint:core',
     'concat:core',
